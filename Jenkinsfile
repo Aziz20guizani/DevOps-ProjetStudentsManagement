@@ -2,22 +2,24 @@ pipeline {
   agent any
 
   environment {
-    DOCKER_IMAGE = "azizguizani/spring-app
-"
+    DOCKER_IMAGE = "azizguizani/spring-app"
     DOCKER_CRED  = "dockerhub-creds"
   }
 
   stages {
+
     stage('Checkout') {
       steps {
         checkout scm
-        script { echo "Branch: ${env.BRANCH_NAME ?: 'unknown'}" }
+        script {
+          echo "Branch: ${env.BRANCH_NAME ?: 'unknown'}"
+        }
       }
     }
 
     stage('Clean + Build Maven') {
       steps {
-        sh 'mvn -B -DskipTests=false clean package'
+        sh 'mvn -B clean package'
       }
       post {
         success {
@@ -28,16 +30,17 @@ pipeline {
 
     stage('Unit tests') {
       steps {
-        sh 'mvn -B -DskipTests=false test'
+        sh 'mvn -B test'
       }
-      post {
-     
-
+    }
 
     stage('Docker build') {
       steps {
         script {
-          def tag = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+          def tag = sh(
+            script: 'git rev-parse --short HEAD',
+            returnStdout: true
+          ).trim()
 
           sh "docker build -t ${DOCKER_IMAGE}:${tag} ."
           sh "docker tag ${DOCKER_IMAGE}:${tag} ${DOCKER_IMAGE}:latest"
@@ -47,7 +50,13 @@ pipeline {
 
     stage('Docker push') {
       steps {
-        withCredentials([usernamePassword(credentialsId: "${DOCKER_CRED}", usernameVariable: 'DH_USER', passwordVariable: 'DH_PASS')]) {
+        withCredentials([
+          usernamePassword(
+            credentialsId: DOCKER_CRED,
+            usernameVariable: 'DH_USER',
+            passwordVariable: 'DH_PASS'
+          )
+        ]) {
           sh '''
             echo "$DH_PASS" | docker login -u "$DH_USER" --password-stdin
             TAG=$(git rev-parse --short HEAD)
@@ -63,7 +72,11 @@ pipeline {
   }
 
   post {
-    success { echo "Pipeline succeeded: ${DOCKER_IMAGE}" }
-    failure { echo "Pipeline failed" }
+    success {
+      echo "Pipeline succeeded: ${DOCKER_IMAGE}"
+    }
+    failure {
+      echo "Pipeline failed"
+    }
   }
 }
